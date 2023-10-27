@@ -6,6 +6,8 @@
 
 [docker镜像加速](https://www.runoob.com/docker/docker-mirror-acceleration.html)
 
+[rust镜像加速](https://www.cnblogs.com/fanqisoft/p/16905827.html)
+
 安装成功后切换分支 执行命令：
 
 ```shell
@@ -46,13 +48,15 @@ $ make run
 
 ### 问题：
 
-
+1、
 
 ```shell
 ERROR: failed to solve: failed to do request: Head "https://registry-1.docker.io/v2/docker/dockerfile/manifests/1": net/http: TLS handshake timeout
 ```
 
 需要配置docker镜像加速。
+
+2
 
 ```shell
 could not rename component file from '/usr/local/rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/std/src/sys/sgx/abi/usercalls' to '/usr/local/rustup/tmp/dyvoupxeciqzsdtf_dir/bk': Invalid cross-device link (os error 18)
@@ -65,3 +69,95 @@ rustup toolchain remove nightly
 rustup toolchain install nightly
 ```
 
+修改os下doker配置文件
+
+```
+env:
+##增加这两行代码
+	rustup toolchain remove nightly
+	rustup toolchain install nightly
+	
+	(rustup target list | grep "riscv64gc-unknown-none-elf (installed)") || rustup target add $(TARGET)
+	cargo install cargo-binutils
+	rustup component add rust-src
+	rustup component add llvm-tools-preview
+```
+
+[链接脚步说明](https://blog.csdn.net/kouxi1/article/details/126707153)
+
+```ld
+OUTPUT_ARCH(riscv)
+##入口地址
+ENTRY(_start)
+BASE_ADDRESS = 0x80200000;
+##https://blog.csdn.net/kouxi1/article/details/126707153
+SECTIONS
+{
+    . = BASE_ADDRESS;
+    skernel = .;
+
+    stext = .;
+    .text : {
+        *(.text.entry)
+        *(.text .text.*)
+    }
+
+    . = ALIGN(4K);##表示从该地址开始后面的存储进行4字节对齐
+    etext = .;
+    srodata = .;
+    .rodata : {
+        *(.rodata .rodata.*)
+        *(.srodata .srodata.*)
+    }
+
+    . = ALIGN(4K);
+    erodata = .;
+    sdata = .;
+    .data : {
+        *(.data .data.*)
+        *(.sdata .sdata.*)
+    }
+
+    . = ALIGN(4K);
+    edata = .;
+    .bss : {
+        *(.bss.stack)
+        sbss = .;
+        *(.bss .bss.*)
+        *(.sbss .sbss.*)
+    }
+
+    . = ALIGN(4K);
+    ebss = .;
+    ekernel = .;
+
+    /DISCARD/ : {
+        *(.eh_frame)
+    }
+}
+```
+
+# 2023-10-24
+
+查看联系第一章：https://rcore-os.cn/rCore-Tutorial-Book-v3/chapter1/4first-instruction-in-kernel2.html
+
+## 问题
+
+执行命令报错riscv64-unknown-elf-gdb: command not found
+
+```shell
+riscv64-unknown-elf-gdb \
+>     -ex 'file target/riscv64gc-unknown-none-elf/release/os' \
+>     -ex 'set arch riscv:rv64' \
+>     -ex 'target remote localhost:1234'
+```
+
+# 2023-10-26
+
+第二节课预习
+
+## 问题
+
+第二节课执行make run报：make[1]: *** user: No such file or directory.  Stop.
+
+需要下载测试代码 
