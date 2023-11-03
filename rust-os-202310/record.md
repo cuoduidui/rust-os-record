@@ -161,3 +161,65 @@ riscv64-unknown-elf-gdb \
 第二节课执行make run报：make[1]: *** user: No such file or directory.  Stop.
 
 需要下载测试代码 
+
+# 2023-11-02
+
+## 1、[linkage = "weak"]
+
+我们使用 Rust 的宏将其函数符号 `main` 标志为弱链接。这样在最后链接的时候，虽然在 `lib.rs` 和 `bin` 目录下的某个应用程序都有 `main` 符号，但由于 `lib.rs` 中的 `main` 符号是弱链接，链接器会使用 `bin` 目录下的应用主逻辑作为 `main` 。这里我们主要是进行某种程度上的保护，如果在 `bin` 目录下找不到任何 `main` ，那么编译也能够通过，但会在运行时报错。
+
+```rust
+#[linkage = "weak"]
+#[no_mangle]
+fn main() -> i32 {
+    panic!("Cannot find main!");
+}
+```
+
+为了支持上述这些链接操作，我们需要在 `lib.rs` 的开头加入：
+
+```rust
+#![feature(linkage)]
+```
+
+## 2、asm!
+
+`global_asm!` 宏来嵌入全局汇编代码，而这里的 `asm!` 宏可以将汇编代码嵌入到局部的函数上下文中。相比 `global_asm!` ， `asm!` 宏可以获取上下文中的变量信息并允许嵌入的汇编代码对这些变量进行操作。由于编译器的能力不足以判定插入汇编代码这个行为的安全性，所以我们需要将其包裹在 unsafe 块中自己来对它负责。
+
+```rust
+// user/src/syscall.rs
+ 2use core::arch::asm;
+ 3fn syscall(id: usize, args: [usize; 3]) -> isize {
+ 4    let mut ret: isize;
+ 5    unsafe {
+ 6        asm!(
+ 7            "ecall",
+ 8            inlateout("x10") args[0] => ret,
+ 9            in("x11") args[1],
+10            in("x12") args[2],
+11            in("x17") id
+12        );
+13    }
+14    ret
+15}
+```
+
+
+
+## 3、RefCell Cell
+
+[链接](https://www.jianshu.com/p/fa2b5a594305)
+
+## 4、 Vectored 模式
+
+- Direct模式：所有的中断和异常使用同一个中断入口地址，一般都会设置为这种模式。
+- Vectored模式：所有异常使用同一个入口地址，但是不同的中断使用不同的入口地址。
+
+[riscv 中断和异常处理 ](https://www.cnblogs.com/dream397/p/15687184.html)
+
+## 5、csr riscv csrrw
+
+https://blog.csdn.net/humphreyandkate/article/details/112941145
+
+# 2023-11-03
+
